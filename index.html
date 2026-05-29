@@ -300,11 +300,12 @@ const GOOD_ROLES = [
 ];
 
 const EVIL_ROLES = [
-  {id:"morgan",   name:"Morgan le Fay",    required:true,  desc:"Not affected by the Magic token"},
-  {id:"blind",    name:"Blind Hunter",     required:false, desc:"Can initiate The Hunt in final quest"},
-  {id:"minion1",  name:"Minion of Mordred",required:false, generic:true},
-  {id:"minion2",  name:"Minion of Mordred",required:false, generic:true},
-  {id:"minion3",  name:"Minion of Mordred",required:false, generic:true},
+  {id:"morgan",     name:"Morgan le Fay",    required:true,  desc:"Not affected by the Magic token"},
+  {id:"scion",      name:"Scion",            required:false, desc:"Evil, unknown to Morgan (4-5 players)"},
+  {id:"changeling", name:"Changeling",       required:false, desc:"Evil, unknown to others (6+ players)"},
+  {id:"blind",      name:"Blind Hunter",     required:false, desc:"Can initiate The Hunt in final quest"},
+  {id:"minion1",    name:"Minion of Mordred",required:false, generic:true},
+  {id:"minion2",    name:"Minion of Mordred",required:false, generic:true},
 ];
 
 const STEP_LABELS = {
@@ -351,12 +352,21 @@ function choosePlayers(n) {
   const ratio = RATIOS[n];
   selected = new Set(["morgan"]);
   let gn = ratio.g, en = ratio.e - 1; // morgan already counted
-  // Default: add Arthur if player count >= 5
-  if (n >= 5) { selected.add("arthur"); gn--; }
-  // Default: add Cleric if player count >= 6
-  if (n >= 6) { selected.add("cleric"); gn--; }
-  for (let i = 1; i <= 5 && gn > 0; i++) { selected.add("loyal"+i); gn--; }
-  for (let i = 1; i <= 3 && en > 0; i++) { selected.add("minion"+i); en--; }
+
+  // Evil setup per rulebook
+  if (n <= 5) {
+    selected.add("scion"); en--;           // Scion required for 4-5 players
+  } else {
+    selected.add("changeling"); en--;      // Changeling required for 6+ players
+    if (en > 0) { selected.add("minion1"); en--; }
+    if (en > 0) { selected.add("minion2"); en--; }
+  }
+
+  // Good setup per rulebook
+  if (n >= 7)  { selected.add("duke");     gn--; }
+  if (n >= 9)  { selected.add("archduke"); gn--; }
+  for (let i = 1; i <= 4 && gn > 0; i++) { selected.add("loyal"+i); gn--; }
+
   loadVoices();
   renderCards();
   showScreen("cards");

@@ -300,6 +300,7 @@ const GOOD_ROLES = [
 
 const EVIL_ROLES = [
   {id:"morgan",   name:"Morgan le Fay",    required:true,  desc:"Not affected by the Magic token"},
+  {id:"scion",    name:"Scion",            required:false, desc:"Required in 4 & 5 player games"},
   {id:"blind",    name:"Blind Hunter",     required:false, desc:"Can initiate The Hunt in final quest"},
   {id:"minion1",  name:"Minion of Mordred",required:false, generic:true},
   {id:"minion2",  name:"Minion of Mordred",required:false, generic:true},
@@ -308,7 +309,7 @@ const EVIL_ROLES = [
 
 const STEP_LABELS = {
   start:"Prepare", oberon_warning:"Stay Hidden",
-  evil_open:"Evil Awakens", evil_close:"Eyes Down", evil_thumb:"Signal Arthur",
+  scion_warning:"Scion, Stay", evil_open:"Evil Awakens", evil_close:"Eyes Down", evil_thumb:"Signal Arthur",
   arthur_open:"Arthur Sees", arthur_close:"Eyes Shut",
   cleric_thumbs:"Guide Cleric", cleric_open:"Cleric Sees", cleric_close:"Rest",
   wake:"Dawn"
@@ -349,6 +350,8 @@ function choosePlayers(n) {
   const ratio = RATIOS[n];
   selected = new Set(["morgan"]);
   let gn = ratio.g, en = ratio.e - 1; // morgan already counted
+  // 4 & 5 players: Scion is required as the second evil
+  if (n <= 5) { selected.add("scion"); en--; }
   // Default: add Arthur if player count >= 5
   if (n >= 5) { selected.add("arthur"); gn--; }
   // Default: add Cleric if player count >= 6
@@ -477,15 +480,21 @@ function buildScript() {
   const hasArthur=selected.has("arthur");
   const hasCleric=selected.has("cleric");
   const hasMorgan=selected.has("morgan");
+  const hasScion=selected.has("scion");
   const s=[];
 
   s.push({id:"start", text:"Everybody close your eyes. Extend your fist in front of you.", pause:1500});
+
+  // Warn Scion before evil opens eyes — just like Oberon in Avalon
+  if (hasScion) {
+    s.push({id:"scion_warning", text:"Scion, keep your eyes closed throughout, and do not raise your thumb.", pause:1250});
+  }
+
   s.push({id:"evil_open", text:"Agents of evil, open your eyes. Look around. Know your fellow agents of evil.", pause:2000});
   s.push({id:"evil_close", text:"Now close your eyes.", pause:1250});
 
   if (hasArthur) {
-    const morganNote = hasMorgan ? " Mordred, keep your thumb down." : "";
-    s.push({id:"evil_thumb", text:`Agents of evil, raise your thumbs so that Arthur may identify you.${morganNote}`, pause:1500});
+    s.push({id:"evil_thumb", text:"Agents of evil, raise your thumbs so that Arthur may identify you.", pause:1500});
     s.push({id:"arthur_open", text:"Arthur. Open your eyes, and behold the agents of evil.", pause:2500});
     s.push({id:"arthur_close", text:"Agents of evil, lower your thumbs. Arthur, close your eyes.", pause:1500});
   }

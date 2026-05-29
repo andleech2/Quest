@@ -308,10 +308,11 @@ const EVIL_ROLES = [
 ];
 
 const STEP_LABELS = {
-  start:"Prepare", oberon_warning:"Stay Hidden",
-  evil_open:"Evil Awakens", evil_close:"Eyes Down", evil_thumb:"Signal Arthur",
-  arthur_open:"Arthur Sees", arthur_close:"Eyes Shut",
-  cleric_thumbs:"Guide Cleric", cleric_open:"Cleric Sees", cleric_close:"Rest",
+  start:"Prepare",
+  scion_thumb:"Scion Signals", morgan_sees:"Morgan Sees", scion_fist:"Scion Hides", morgan_close:"Eyes Shut",
+  evil_open:"Evil Awakens", evil_close:"Eyes Down",
+  arthur_thumb:"Signal Arthur", arthur_open:"Arthur Sees", arthur_close:"Eyes Shut",
+  cleric_thumb:"Guide Cleric", cleric_open:"Cleric Sees", cleric_close:"Rest",
   wake:"Dawn"
 };
 
@@ -322,7 +323,7 @@ const VOICE_PRESETS = [
   {id:"demon",    type:"browser", emoji:"😈", name:"The Demon",     rate:0.80, pitch:0.25, hints:["google uk english male","david","daniel","george"]},
 ];
 
-const PREVIEW_TEXT = "Agents of evil, open your eyes. Look around. Know your fellow agents of evil.";
+const PREVIEW_TEXT = "Scion, extend your thumb so that Morgan le Fay may know of you.";
 
 let playerCount=0, selected=new Set(), script=[], stepIdx=0;
 let timerRAF=null, isPaused=false;
@@ -473,33 +474,47 @@ function updateCounts() {
   document.getElementById("cards-label").textContent=`${playerCount} players · Choose your cards`;
 }
 
-// ── SCRIPT ──────────────────────────────────────────────────────────────
+// ── SCRIPT (exact per official rulebook) ──────────────────────────────
 function buildScript() {
-  const hasArthur=selected.has("arthur");
-  const hasCleric=selected.has("cleric");
-  const hasMorgan=selected.has("morgan");
-  const s=[];
+  const hasArthur    = selected.has("arthur");
+  const hasCleric    = selected.has("cleric");
+  const hasScion     = selected.has("scion");
+  const hasChangeling= selected.has("changeling");
+  const s = [];
 
   s.push({id:"start", text:"Everybody close your eyes. Extend your fist in front of you.", pause:1500});
-  s.push({id:"evil_open", text:"Agents of evil, open your eyes. Look around. Know your fellow agents of evil.", pause:2000});
-  s.push({id:"evil_close", text:"Now close your eyes.", pause:1250});
 
+  if (hasScion) {
+    // 4-5 player: exact rulebook script
+    s.push({id:"scion_thumb",  text:"Scion, extend your thumb so that Morgan le Fay may know of you.", pause:1500});
+    s.push({id:"morgan_sees",  text:"Morgan le Fay, open your eyes and look around so that you know your Scion.", pause:2000});
+    s.push({id:"scion_fist",   text:"Scion, re-form your hand into a fist.", pause:1250});
+    s.push({id:"morgan_close", text:"Morgan le Fay, close your eyes.", pause:1250});
+  } else {
+    // 6+ player: exact rulebook script
+    const changelingNote = hasChangeling ? ", not Changeling," : "";
+    s.push({id:"evil_open",  text:`Minions of Mordred and Morgan le Fay${changelingNote} open your eyes and look around so that you may know of each other.`, pause:2000});
+    s.push({id:"evil_close", text:"Minions of Mordred and Morgan le Fay, close your eyes.", pause:1250});
+  }
+
+  // Optional: Arthur phase
   if (hasArthur) {
-    const morganNote = hasMorgan ? " Mordred, keep your thumb down." : "";
-    s.push({id:"evil_thumb", text:`Agents of evil, raise your thumbs so that Arthur may identify you.${morganNote}`, pause:1500});
-    s.push({id:"arthur_open", text:"Arthur. Open your eyes, and behold the agents of evil.", pause:2500});
+    s.push({id:"arthur_thumb", text:"Agents of evil, raise your thumbs so that Arthur may identify you.", pause:1500});
+    s.push({id:"arthur_open",  text:"Arthur, open your eyes and behold the agents of evil.", pause:2500});
     s.push({id:"arthur_close", text:"Agents of evil, lower your thumbs. Arthur, close your eyes.", pause:1500});
   }
 
+  // Optional: Cleric phase
   if (hasCleric && hasArthur) {
-    s.push({id:"cleric_thumbs", text:"Arthur, raise your thumb so that the Cleric may find you.", pause:1500});
-    s.push({id:"cleric_open", text:"Cleric, open your eyes. Behold Arthur.", pause:2500});
+    s.push({id:"cleric_thumb", text:"Arthur, raise your thumb so that the Cleric may find you.", pause:1500});
+    s.push({id:"cleric_open",  text:"Cleric, open your eyes. Behold Arthur.", pause:2500});
     s.push({id:"cleric_close", text:"Cleric, close your eyes. Arthur, lower your thumb.", pause:1500});
   }
 
   s.push({id:"wake", text:"Everybody open your eyes. The quest begins. May the worthy prevail... and conquer.", pause:0});
   return s;
 }
+
 
 // ── NIGHT ──────────────────────────────────────────────────────────────
 function startNight() {

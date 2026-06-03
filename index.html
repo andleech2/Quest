@@ -290,30 +290,39 @@
 const RATIOS = {4:{g:2,e:2},5:{g:3,e:2},6:{g:4,e:2},7:{g:4,e:3},8:{g:5,e:3},9:{g:6,e:3},10:{g:6,e:4}};
 
 const GOOD_ROLES = [
-  {id:"arthur",   name:"Arthur",           required:false, desc:"Knows Morgan le Fay, must remain hidden"},
-  {id:"cleric",   name:"Cleric",           required:false, desc:"Knows Arthur's identity"},
-  {id:"loyal1",   name:"Loyal Servant",    required:false, generic:true},
-  {id:"loyal2",   name:"Loyal Servant",    required:false, generic:true},
-  {id:"loyal3",   name:"Loyal Servant",    required:false, generic:true},
-  {id:"loyal4",   name:"Loyal Servant",    required:false, generic:true},
-  {id:"loyal5",   name:"Loyal Servant",    required:false, generic:true},
+  {id:"arthur",      name:"Arthur",            required:false, desc:"Knows Morgan le Fay, must remain hidden"},
+  {id:"cleric",      name:"Cleric",             required:false, desc:"Sees if the Leader is Good or Evil"},
+  {id:"duke",        name:"Duke",               required:false, desc:"Optional good role"},
+  {id:"youth",       name:"Youth",              required:false, desc:"Magic token forces Fail on this player"},
+  {id:"troublemaker",name:"Troublemaker",        required:false, desc:"Appears Evil to loyalty checks"},
+  {id:"archduke",    name:"Archduke",            required:false, desc:"Optional good role"},
+  {id:"loyal1",      name:"Loyal Servant",       required:false, generic:true},
+  {id:"loyal2",      name:"Loyal Servant",       required:false, generic:true},
+  {id:"loyal3",      name:"Loyal Servant",       required:false, generic:true},
+  {id:"loyal4",      name:"Loyal Servant",       required:false, generic:true},
 ];
 
 const EVIL_ROLES = [
   {id:"morgan",     name:"Morgan le Fay",    required:true,  desc:"Not affected by the Magic token"},
-  {id:"scion",      name:"Scion",            required:false, desc:"Evil, unknown to Morgan (4-5 players)"},
-  {id:"changeling", name:"Changeling",       required:false, desc:"Evil, unknown to others (6+ players)"},
-  {id:"blind",      name:"Blind Hunter",     required:false, desc:"Can initiate The Hunt in final quest"},
+  {id:"scion",      name:"Scion",            required:false, desc:"Evil, unknown to Morgan (base 4-5 players)"},
+  {id:"changeling", name:"Changeling",       required:false, desc:"Evil, unknown to others (base 6+ players)"},
+  {id:"blind",      name:"Blind Hunter",     required:false, desc:"Unknown to Minions; they signal to her"},
   {id:"minion1",    name:"Minion of Mordred",required:false, generic:true},
   {id:"minion2",    name:"Minion of Mordred",required:false, generic:true},
 ];
 
 const STEP_LABELS = {
   start:"Prepare",
-  scion_thumb:"Scion Signals", morgan_sees:"Morgan Sees", scion_fist:"Scion Hides", morgan_close:"Eyes Shut",
+  // Base 4-5 (Scion)
+  scion_thumb:"Scion Signals", morgan_sees:"Morgan Sees", scion_fist:"Scion Hides", morgan_close:"Morgan Rests",
+  // Base 6+ (Changeling)
   evil_open:"Evil Awakens", evil_close:"Eyes Down",
+  // Optional characters (Blind Hunter)
+  blind_thumb:"Blind Signals", minions_see:"Minions Awaken", minions_close:"Eyes Down", blind_fist:"Blind Hides",
+  // Cleric (optional)
+  leader_thumb:"Leader Signals", cleric_open:"Cleric Sees", cleric_close:"Cleric Rests", leader_fist:"Leader Hides",
+  // Arthur (optional)
   arthur_thumb:"Signal Arthur", arthur_open:"Arthur Sees", arthur_close:"Eyes Shut",
-  cleric_thumb:"Guide Cleric", cleric_open:"Cleric Sees", cleric_close:"Rest",
   wake:"Dawn"
 };
 
@@ -351,21 +360,25 @@ function choosePlayers(n) {
   playerCount = n;
   const ratio = RATIOS[n];
   selected = new Set(["morgan"]);
-  let gn = ratio.g, en = ratio.e - 1; // morgan already counted
 
-  // Evil setup per rulebook
+  // Base game defaults per official rulebook setup table
   if (n <= 5) {
-    selected.add("scion"); en--;           // Scion required for 4-5 players
+    // 4-5 players: Morgan + Scion evil; Loyal Servants good
+    selected.add("scion");
+    let gn = ratio.g;
+    for (let i = 1; i <= 4 && gn > 0; i++) { selected.add("loyal"+i); gn--; }
   } else {
-    selected.add("changeling"); en--;      // Changeling required for 6+ players
+    // 6+ players: base evil setup
+    selected.add("changeling");
+    let en = ratio.e - 2; // morgan + changeling counted
     if (en > 0) { selected.add("minion1"); en--; }
     if (en > 0) { selected.add("minion2"); en--; }
+    // Base good setup
+    let gn = ratio.g;
+    if (n >= 7)  { selected.add("duke");     gn--; }
+    if (n >= 9)  { selected.add("archduke"); gn--; }
+    for (let i = 1; i <= 4 && gn > 0; i++) { selected.add("loyal"+i); gn--; }
   }
-
-  // Good setup per rulebook
-  if (n >= 7)  { selected.add("duke");     gn--; }
-  if (n >= 9)  { selected.add("archduke"); gn--; }
-  for (let i = 1; i <= 4 && gn > 0; i++) { selected.add("loyal"+i); gn--; }
 
   loadVoices();
   renderCards();
@@ -484,41 +497,52 @@ function updateCounts() {
   document.getElementById("cards-label").textContent=`${playerCount} players · Choose your cards`;
 }
 
-// ── SCRIPT (exact per official rulebook) ──────────────────────────────
+// ── SCRIPT ───────────────────────────────────────────────────────────
 function buildScript() {
-  const hasArthur    = selected.has("arthur");
-  const hasCleric    = selected.has("cleric");
-  const hasScion     = selected.has("scion");
-  const hasChangeling= selected.has("changeling");
+  const hasArthur     = selected.has("arthur");
+  const hasCleric     = selected.has("cleric");
+  const hasScion      = selected.has("scion");
+  const hasChangeling = selected.has("changeling");
+  const hasBlind      = selected.has("blind");
+  const hasMinions    = selected.has("minion1") || selected.has("minion2");
   const s = [];
 
   s.push({id:"start", text:"Everybody close your eyes. Extend your fist in front of you.", pause:1500});
 
-  if (hasScion) {
-    // 4-5 player: exact rulebook script
+  if (hasBlind) {
+    // ── Optional characters narration (rulebook p.10) ──
+    s.push({id:"blind_thumb",   text:"Blind Hunter, extend your thumb so that the Minions of Mordred may know of you.", pause:1500});
+    if (hasMinions) {
+      s.push({id:"minions_see",   text:"Minions of Mordred, not Blind Hunter, open your eyes and look around so that you know all agents of evil.", pause:2000});
+      s.push({id:"minions_close", text:"Minions of Mordred, close your eyes.", pause:1250});
+    }
+    s.push({id:"blind_fist",    text:"Blind Hunter, re-form your hand into a fist.", pause:1250});
+    if (hasCleric) {
+      s.push({id:"leader_thumb",  text:"Leader, extend your thumb if you are evil.", pause:1500});
+      s.push({id:"cleric_open",   text:"Cleric, open your eyes.", pause:2000});
+      s.push({id:"cleric_close",  text:"Cleric, close your eyes.", pause:1250});
+      s.push({id:"leader_fist",   text:"Leader, re-form your hand into a fist.", pause:1250});
+    }
+
+  } else if (hasScion) {
+    // ── Base 4-5 player narration (rulebook p.4) ──
     s.push({id:"scion_thumb",  text:"Scion, extend your thumb so that Morgan le Fay may know of you.", pause:1500});
     s.push({id:"morgan_sees",  text:"Morgan le Fay, open your eyes and look around so that you know your Scion.", pause:2000});
     s.push({id:"scion_fist",   text:"Scion, re-form your hand into a fist.", pause:1250});
     s.push({id:"morgan_close", text:"Morgan le Fay, close your eyes.", pause:1250});
+
   } else {
-    // 6+ player: exact rulebook script
+    // ── Base 6+ player narration (rulebook p.4) ──
     const changelingNote = hasChangeling ? ", not Changeling," : "";
     s.push({id:"evil_open",  text:`Minions of Mordred and Morgan le Fay${changelingNote} open your eyes and look around so that you may know of each other.`, pause:2000});
     s.push({id:"evil_close", text:"Minions of Mordred and Morgan le Fay, close your eyes.", pause:1250});
   }
 
-  // Optional: Arthur phase
+  // ── Optional: Arthur phase ──
   if (hasArthur) {
     s.push({id:"arthur_thumb", text:"Agents of evil, raise your thumbs so that Arthur may identify you.", pause:1500});
     s.push({id:"arthur_open",  text:"Arthur, open your eyes and behold the agents of evil.", pause:2500});
     s.push({id:"arthur_close", text:"Agents of evil, lower your thumbs. Arthur, close your eyes.", pause:1500});
-  }
-
-  // Optional: Cleric phase
-  if (hasCleric && hasArthur) {
-    s.push({id:"cleric_thumb", text:"Arthur, raise your thumb so that the Cleric may find you.", pause:1500});
-    s.push({id:"cleric_open",  text:"Cleric, open your eyes. Behold Arthur.", pause:2500});
-    s.push({id:"cleric_close", text:"Cleric, close your eyes. Arthur, lower your thumb.", pause:1500});
   }
 
   s.push({id:"wake", text:"Everybody open your eyes. The quest begins. May the worthy prevail... and conquer.", pause:0});

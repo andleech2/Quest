@@ -474,8 +474,18 @@ function toggleRole(role) {
     if (g) selected.add(g.id);
   } else {
     const g=[...pool].reverse().find(r=>r.generic&&selected.has(r.id));
-    if (g) { selected.delete(g.id); selected.add(role.id); }
-    else { const cur=pool.filter(r=>selected.has(r.id)).length; if(cur<maxCount) selected.add(role.id); }
+    if (g) {
+      selected.delete(g.id); selected.add(role.id);
+    } else {
+      // No generic — swap another non-required named role if at max
+      const cur=pool.filter(r=>selected.has(r.id)).length;
+      if (cur<maxCount) {
+        selected.add(role.id);
+      } else {
+        const swap=pool.find(r=>!r.required&&!r.generic&&r.id!==role.id&&selected.has(r.id));
+        if (swap) { selected.delete(swap.id); selected.add(role.id); }
+      }
+    }
   }
   renderCards();
 }
@@ -510,19 +520,15 @@ function buildScript() {
   s.push({id:"start", text:"Everybody close your eyes. Extend your fist in front of you.", pause:1500});
 
   if (hasBlind) {
-    // ── Optional characters narration (rulebook p.10) ──
-    s.push({id:"blind_thumb",   text:"Blind Hunter, extend your thumb so that the Minions of Mordred may know of you.", pause:1500});
-    if (hasMinions) {
-      s.push({id:"minions_see",   text:"Minions of Mordred, not Blind Hunter, open your eyes and look around so that you know all agents of evil.", pause:2000});
-      s.push({id:"minions_close", text:"Minions of Mordred, close your eyes.", pause:1250});
-    }
+    // ── Optional characters narration (exact rulebook) ──
+    s.push({id:"blind_thumb",   text:"Blind Hunter, extend your thumb so the Minions of Mordred may know of you.", pause:1500});
+    s.push({id:"minions_see",   text:"Minions of Mordred, not Blind Hunter, open your eyes and look around so that you know all agents of evil.", pause:2000});
+    s.push({id:"minions_close", text:"Minions of Mordred, close your eyes.", pause:1250});
     s.push({id:"blind_fist",    text:"Blind Hunter, re-form your hand into a fist.", pause:1250});
-    if (hasCleric) {
-      s.push({id:"leader_thumb",  text:"Leader, extend your thumb if you are evil.", pause:1500});
-      s.push({id:"cleric_open",   text:"Cleric, open your eyes.", pause:2000});
-      s.push({id:"cleric_close",  text:"Cleric, close your eyes.", pause:1250});
-      s.push({id:"leader_fist",   text:"Leader, re-form your hand into a fist.", pause:1250});
-    }
+    s.push({id:"leader_thumb",  text:"Leader, extend your thumb if you are evil.", pause:1500});
+    s.push({id:"cleric_open",   text:"Cleric, open your eyes.", pause:2000});
+    s.push({id:"cleric_close",  text:"Cleric, close your eyes.", pause:1250});
+    s.push({id:"leader_fist",   text:"Leader, re-form your hand into a fist.", pause:1250});
 
   } else if (hasScion) {
     // ── Base 4-5 player narration (rulebook p.4) ──
